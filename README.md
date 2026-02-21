@@ -148,6 +148,46 @@ response = llm.invoke("What is AI?")
 
 Rate limits are tracked locally and visible at `/api/rate-limits`. The server pre-checks limits before sending requests to Groq to avoid wasting round-trips.
 
+## Web Chat UI
+
+Visit the server root URL in your browser to access the built-in chat interface:
+
+```
+http://localhost:8021/
+```
+
+Features:
+- Model selection (Llama 70B, GPT-OSS 120B, GPT-OSS 20B)
+- SSE streaming responses
+- Conversation history
+- Token authentication (stored in localStorage)
+- Mobile-responsive dark theme
+
+## CLI Chat
+
+Interactive terminal client with streaming support:
+
+```bash
+# Interactive mode
+python3 cli_chat.py -t YOUR_TOKEN
+
+# Specify model
+python3 cli_chat.py -t YOUR_TOKEN -m openai/gpt-oss-120b
+
+# Single question
+python3 cli_chat.py -t YOUR_TOKEN --one-shot "What is AI?"
+
+# Use remote server
+python3 cli_chat.py -t YOUR_TOKEN --url https://groq.dhammastack.com
+```
+
+Environment variables (alternative to flags):
+- `GROQ_API_TOKEN` - Bearer token
+- `GROQ_SERVER_URL` - Server URL (default: `http://localhost:8021`)
+- `GROQ_MODEL` - Default model
+
+In-chat commands: `/model`, `/models`, `/clear`, `/system`, `/rate`, `/quit`
+
 ## Testing
 
 ```bash

@@ -1,13 +1,18 @@
 import logging
 import time
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.routers import api
 from app.services.groq_service import groq_service
 from app.services.rate_limiter import rate_limiter, MODEL_RATE_LIMITS
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,6 +81,17 @@ async def log_requests(request: Request, call_next):
     )
     response.headers["X-Request-ID"] = request_id
     return response
+
+
+# Serve chat UI at root
+@app.get("/", include_in_schema=False)
+async def serve_chat_ui():
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+# Serve other static files (if any added later)
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.on_event("shutdown")
