@@ -27,9 +27,12 @@ MODELS = {
     "1": "llama-3.3-70b-versatile",
     "2": "openai/gpt-oss-120b",
     "3": "openai/gpt-oss-20b",
+    "4": "qwen/qwen3-32b",
     "llama": "llama-3.3-70b-versatile",
     "120b": "openai/gpt-oss-120b",
     "20b": "openai/gpt-oss-20b",
+    "qwen": "qwen/qwen3-32b",
+    "32b": "qwen/qwen3-32b",
 }
 
 COLORS = {
@@ -213,6 +216,7 @@ def interactive_chat(url: str, token: str, model: str, one_shot: str = None):
                     print(c("gray", "    1) llama-3.3-70b-versatile (llama)"))
                     print(c("gray", "    2) openai/gpt-oss-120b (120b)"))
                     print(c("gray", "    3) openai/gpt-oss-20b (20b)"))
+                    print(c("gray", "    4) qwen/qwen3-32b (qwen, 32b)"))
                     continue
                 elif command == "/system":
                     system_prompt = arg.strip() if arg.strip() else None

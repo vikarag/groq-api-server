@@ -10,6 +10,7 @@ import httpx
 
 from app.config import settings
 from app.services.rate_limiter import rate_limiter
+from app.services.usage_tracker import usage_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +19,12 @@ MODEL_MAP = {
     "gpt-oss-120b": "openai/gpt-oss-120b",
     "gpt-oss-20b": "openai/gpt-oss-20b",
     "llama-70b": "llama-3.3-70b-versatile",
+    "qwen-32b": "qwen/qwen3-32b",
     # Full IDs map to themselves
     "openai/gpt-oss-120b": "openai/gpt-oss-120b",
     "openai/gpt-oss-20b": "openai/gpt-oss-20b",
     "llama-3.3-70b-versatile": "llama-3.3-70b-versatile",
+    "qwen/qwen3-32b": "qwen/qwen3-32b",
 }
 
 # OpenAI-compatible model name aliases -> Groq model IDs
@@ -182,7 +185,7 @@ class GroqService:
         if total_tokens:
             rate_limiter.record_tokens(model_id, total_tokens)
 
-        return GroqResponse(
+        result = GroqResponse(
             result=result_text,
             model=data.get("model", model_id),
             usage={
@@ -193,6 +196,18 @@ class GroqService:
             duration_ms=duration,
             rate_limit_headers=dict(resp.headers),
         )
+
+        # Record to persistent usage tracker
+        usage_tracker.record(
+            model=model_id,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+            duration_ms=duration,
+            endpoint="chat",
+        )
+
+        return result
 
     async def chat_completions(
         self,
@@ -263,6 +278,16 @@ class GroqService:
         if total_tokens:
             rate_limiter.record_tokens(model_id, total_tokens)
 
+        # Record to persistent usage tracker
+        usage_tracker.record(
+            model=model_id,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=total_tokens,
+            duration_ms=duration,
+            endpoint="completions",
+        )
+
         return data, dict(resp.headers), duration
 
     async def _stream_response(self, client: httpx.AsyncClient, payload: dict, model_id: str, start: float):
@@ -298,6 +323,11 @@ class GroqService:
                         if payload_str == "[DONE]":
                             if total_tokens:
                                 rate_limiter.record_tokens(model_id, total_tokens)
+                                usage_tracker.record(
+                                    model=model_id,
+                                    total_tokens=total_tokens,
+                                    endpoint="completions-stream",
+                                )
                             yield "data: [DONE]\n\n"
                             return
                         try:

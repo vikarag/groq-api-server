@@ -26,6 +26,9 @@ venv/
 *.swp
 *.swo
 
+# Data (SQLite usage DB)
+data/
+
 # OS
 .DS_Store
 Thumbs.db

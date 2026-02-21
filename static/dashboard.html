@@ -317,21 +317,45 @@
     </div>
   </div>
 
-  <!-- Request Log -->
+  <!-- Persistent Usage Stats -->
+  <div class="history-section" id="persistentSection">
+    <h3>Persistent Usage (SQLite) - Last 24 Hours</h3>
+    <div class="server-info" id="persistentStats" style="margin-bottom:0">
+      <div class="info-card">
+        <div class="label">Requests (24h)</div>
+        <div class="value" id="persist24hReq">--</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Tokens (24h)</div>
+        <div class="value" id="persist24hTok">--</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Errors (24h)</div>
+        <div class="value" id="persist24hErr">--</div>
+      </div>
+      <div class="info-card">
+        <div class="label">All-Time Requests</div>
+        <div class="value" id="persistAllReq">--</div>
+      </div>
+    </div>
+    <div id="persistentModels" style="margin-top:16px"></div>
+  </div>
+
+  <!-- Request Log (Persistent) -->
   <div class="log-section">
-    <h3>Recent Activity</h3>
+    <h3>Recent Requests (Persistent Log)</h3>
     <table class="log-table">
       <thead>
         <tr>
           <th>Time</th>
           <th>Model</th>
-          <th>RPM Used</th>
-          <th>TPM Used</th>
-          <th>Groq Remaining</th>
+          <th>Tokens</th>
+          <th>Duration</th>
+          <th>Endpoint</th>
         </tr>
       </thead>
       <tbody id="logBody">
-        <tr><td colspan="5" class="log-empty">Collecting data...</td></tr>
+        <tr><td colspan="5" class="log-empty">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -351,6 +375,7 @@ const MODEL_COLORS = {
   'llama-3.3-70b-versatile': '#22c55e',
   'openai/gpt-oss-120b': '#3b82f6',
   'openai/gpt-oss-20b': '#a855f7',
+  'qwen/qwen3-32b': '#f59e0b',
 };
 
 // Simple canvas chart
@@ -485,12 +510,9 @@ function shortModel(m) {
   if (m.includes('120b')) return 'GPT-OSS 120B';
   if (m.includes('20b')) return 'GPT-OSS 20B';
   if (m.includes('llama')) return 'Llama 70B';
+  if (m.includes('qwen')) return 'Qwen3 32B';
   return m;
 }
-
-// Log entries
-const logEntries = [];
-const MAX_LOG = 20;
 
 function renderStatusCards(rateLimits) {
   const grid = document.getElementById('statusGrid');
@@ -515,15 +537,6 @@ function renderStatusCards(rateLimits) {
     if (!history[modelId]) history[modelId] = [];
     history[modelId].push(rpm.used || 0);
     if (history[modelId].length > MAX_HISTORY) history[modelId].shift();
-
-    // Log entry
-    logEntries.unshift({
-      time: new Date().toLocaleTimeString(),
-      model: modelId,
-      rpm_used: rpm.used || 0,
-      tpm_used: tpm.used || 0,
-      groq_remaining: info.groq_remaining_requests,
-    });
 
     const card = document.createElement('div');
     card.className = 'status-card';
@@ -597,23 +610,49 @@ function renderChart() {
   chart.draw(datasets, timeLabels);
 }
 
-function renderLog() {
+function renderPersistentLog(entries) {
   const body = document.getElementById('logBody');
-  if (logEntries.length === 0) return;
+  if (!entries || entries.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="log-empty">No requests recorded yet</td></tr>';
+    return;
+  }
 
-  // Keep only recent
-  while (logEntries.length > MAX_LOG) logEntries.pop();
-
-  body.innerHTML = logEntries.map(e => `
+  body.innerHTML = entries.map(e => {
+    const ts = e.timestamp ? new Date(e.timestamp + 'Z').toLocaleString() : '-';
+    return `
     <tr>
-      <td class="mono">${e.time}</td>
+      <td class="mono">${ts}</td>
       <td>${shortModel(e.model)}</td>
-      <td class="mono">${e.rpm_used}</td>
-      <td class="mono">${e.tpm_used.toLocaleString()}</td>
-      <td class="mono">${e.groq_remaining != null ? e.groq_remaining : '-'}</td>
-    </tr>
+      <td class="mono">${(e.total_tokens || 0).toLocaleString()}</td>
+      <td class="mono">${e.duration_ms || 0}ms</td>
+      <td>${e.endpoint || '-'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPersistentStats(summary, allTime) {
+  document.getElementById('persist24hReq').textContent = (summary.total_requests || 0).toLocaleString();
+  document.getElementById('persist24hTok').textContent = (summary.total_tokens || 0).toLocaleString();
+  document.getElementById('persist24hErr').textContent = summary.total_errors || 0;
+  document.getElementById('persistAllReq').textContent = (allTime.total_requests || 0).toLocaleString();
+
+  // Per-model breakdown
+  const container = document.getElementById('persistentModels');
+  const models = summary.models || {};
+  if (Object.keys(models).length === 0) {
+    container.innerHTML = '<div style="color:var(--text-dim);font-size:13px">No usage data yet</div>';
+    return;
+  }
+
+  container.innerHTML = Object.entries(models).map(([model, stats]) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="color:${MODEL_COLORS[model] || '#888'};font-weight:600">${shortModel(model)}</span>
+      <span class="mono">${stats.request_count} req &middot; ${(stats.total_tokens || 0).toLocaleString()} tok &middot; avg ${stats.avg_duration_ms}ms</span>
+    </div>
   `).join('');
 }
+
+const authHeaders = { 'Authorization': `Bearer ${TOKEN}` };
 
 async function fetchData() {
   if (!TOKEN) {
@@ -623,12 +662,13 @@ async function fetchData() {
   }
 
   try {
-    // Fetch health and rate limits in parallel
-    const [healthResp, rateResp] = await Promise.all([
+    // Fetch all data in parallel
+    const [healthResp, rateResp, summaryResp, recentResp, allTimeResp] = await Promise.all([
       fetch(`${API_BASE}/health`),
-      fetch(`${API_BASE}/api/rate-limits`, {
-        headers: { 'Authorization': `Bearer ${TOKEN}` }
-      }),
+      fetch(`${API_BASE}/api/rate-limits`, { headers: authHeaders }),
+      fetch(`${API_BASE}/api/usage/summary?hours=24`, { headers: authHeaders }),
+      fetch(`${API_BASE}/api/usage/recent?limit=30`, { headers: authHeaders }),
+      fetch(`${API_BASE}/api/usage/all-time`, { headers: authHeaders }),
     ]);
 
     const health = await healthResp.json();
@@ -640,7 +680,21 @@ async function fetchData() {
       const rateData = await rateResp.json();
       renderStatusCards(rateData.rate_limits || {});
       renderChart();
-      renderLog();
+    }
+
+    if (summaryResp.ok && allTimeResp.ok) {
+      const summary = await summaryResp.json();
+      const allTime = await allTimeResp.json();
+      renderPersistentStats(summary, allTime);
+
+      // Update header totals from persistent data
+      document.getElementById('totalRequests').textContent = (allTime.total_requests || 0).toLocaleString();
+      document.getElementById('totalTokens').textContent = (allTime.total_tokens || 0).toLocaleString();
+    }
+
+    if (recentResp.ok) {
+      const recent = await recentResp.json();
+      renderPersistentLog(recent.entries || []);
     }
 
     document.getElementById('lastUpdate').textContent = `Updated ${new Date().toLocaleTimeString()}`;

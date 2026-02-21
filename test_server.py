@@ -243,10 +243,10 @@ def run_connectivity_tests(client: HttpClient, runner: TestRunner):
 
     # 3. Health includes models
     models = r.get("json", {}).get("available_models", [])
-    if len(models) == 3:
+    if len(models) == 4:
         runner.passed("test_health_models", f"{len(models)} models listed")
     else:
-        runner.failed("test_health_models", f"expected 3 models, got {len(models)}")
+        runner.failed("test_health_models", f"expected 4 models, got {len(models)}")
 
 
 def run_auth_tests(client: HttpClient, runner: TestRunner):
@@ -287,11 +287,11 @@ def run_api_tests(client: HttpClient, runner: TestRunner, skip_ai: bool):
     r = client.request("GET", "/api/models")
     runner.log_verbose("response", r.get("json"))
     models = r.get("json", {}).get("models", [])
-    if r["status"] == 200 and len(models) == 3:
+    if r["status"] == 200 and len(models) == 4:
         keys = [m["key"] for m in models]
-        runner.passed("test_api_models", f"3 models: {', '.join(keys)}", r["elapsed_ms"])
+        runner.passed("test_api_models", f"4 models: {', '.join(keys)}", r["elapsed_ms"])
     else:
-        runner.failed("test_api_models", f"expected 3 models, got {len(models)}", r["elapsed_ms"])
+        runner.failed("test_api_models", f"expected 4 models, got {len(models)}", r["elapsed_ms"])
 
     # 2. Models have rate limit info
     if models and "rate_limits" in models[0]:
@@ -303,10 +303,10 @@ def run_api_tests(client: HttpClient, runner: TestRunner, skip_ai: bool):
     r = client.request("GET", "/api/rate-limits")
     runner.log_verbose("response", r.get("json"))
     rate_limits = r.get("json", {}).get("rate_limits", {})
-    if r["status"] == 200 and len(rate_limits) == 3:
+    if r["status"] == 200 and len(rate_limits) == 4:
         runner.passed("test_api_rate_limits", f"{len(rate_limits)} models tracked", r["elapsed_ms"])
     else:
-        runner.failed("test_api_rate_limits", f"expected 3 models, got {len(rate_limits)}", r["elapsed_ms"])
+        runner.failed("test_api_rate_limits", f"expected 4 models, got {len(rate_limits)}", r["elapsed_ms"])
 
     # 4. Chat (AI)
     if skip_ai:
@@ -459,10 +459,10 @@ def run_rate_limit_tests(client: HttpClient, runner: TestRunner):
     runner.log_verbose("response", r.get("json"))
     rate_limits = r.get("json", {}).get("rate_limits", {})
 
-    expected_models = {"openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"}
+    expected_models = {"openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "qwen/qwen3-32b"}
     found_models = set(rate_limits.keys())
     if expected_models == found_models:
-        runner.passed("test_rate_limits_all_models", "all 3 models tracked")
+        runner.passed("test_rate_limits_all_models", "all 4 models tracked")
     else:
         runner.failed("test_rate_limits_all_models", f"expected {expected_models}, got {found_models}")
 

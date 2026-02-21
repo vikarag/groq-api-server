@@ -12,6 +12,7 @@ from app.config import settings
 from app.schemas import ChatRequest, GroqApiResponse, OpenAIChatRequest
 from app.services.groq_service import groq_service, MODEL_MAP, OPENAI_MODEL_ALIASES
 from app.services.rate_limiter import rate_limiter, MODEL_RATE_LIMITS
+from app.services.usage_tracker import usage_tracker
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["api"])
@@ -25,6 +26,7 @@ GROQ_MODELS = [
     {"id": "openai/gpt-oss-120b", "short": "gpt-oss-120b"},
     {"id": "openai/gpt-oss-20b", "short": "gpt-oss-20b"},
     {"id": "llama-3.3-70b-versatile", "short": "llama-70b"},
+    {"id": "qwen/qwen3-32b", "short": "qwen-32b"},
 ]
 
 
@@ -94,6 +96,30 @@ async def list_models(_: str = Depends(verify_token)):
 async def get_rate_limits(_: str = Depends(verify_token)):
     """Get current rate limit usage for all models."""
     return {"rate_limits": rate_limiter.get_all_status()}
+
+
+@router.get("/usage/summary")
+async def usage_summary(hours: int = 24, _: str = Depends(verify_token)):
+    """Get usage summary for the last N hours (default 24)."""
+    return usage_tracker.get_summary(hours=hours)
+
+
+@router.get("/usage/recent")
+async def usage_recent(limit: int = 50, _: str = Depends(verify_token)):
+    """Get recent usage log entries."""
+    return {"entries": usage_tracker.get_recent(limit=limit)}
+
+
+@router.get("/usage/hourly")
+async def usage_hourly(hours: int = 24, _: str = Depends(verify_token)):
+    """Get hourly aggregated usage stats for charting."""
+    return {"hourly": usage_tracker.get_hourly_stats(hours=hours)}
+
+
+@router.get("/usage/all-time")
+async def usage_all_time(_: str = Depends(verify_token)):
+    """Get all-time usage totals."""
+    return usage_tracker.get_all_time_stats()
 
 
 # --- OpenAI-compatible endpoints ---
