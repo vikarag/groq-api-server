@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groq Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #e5e5e5;
+    --text-dim: #888;
+    --accent: #f97316;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .header h1 a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .header-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn-sm {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .btn-sm:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* Status cards */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .status-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .status-card h3 {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .status-card h3 .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  .badge.ok { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.warn { background: rgba(234,179,8,0.15); color: var(--yellow); }
+  .badge.danger { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .metric-label {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .metric-value {
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  /* Progress bars */
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    margin-top: 4px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .progress-fill.ok { background: var(--green); }
+  .progress-fill.warn { background: var(--yellow); }
+  .progress-fill.danger { background: var(--red); }
+
+  /* History section */
+  .history-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .history-section h3 {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  /* Chart */
+  .chart-container {
+    width: 100%;
+    height: 200px;
+    position: relative;
+  }
+
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Request log */
+  .log-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .log-section h3 {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  .log-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .log-table th {
+    text-align: left;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .log-table td {
+    font-size: 13px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .log-table .mono {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 12px;
+  }
+
+  .log-empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 24px;
+    font-size: 13px;
+  }
+
+  /* Server info */
+  .server-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+
+  .info-card .label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .info-card .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .info-card .value.ok { color: var(--green); }
+
+  .auto-refresh {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 640px) {
+    .status-grid { grid-template-columns: 1fr; }
+    .server-info { grid-template-columns: repeat(2, 1fr); }
+    .container { padding: 16px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><a href="/">Groq</a> / Dashboard</h1>
+  <div class="header-controls">
+    <span class="auto-refresh" id="lastUpdate">Updating...</span>
+    <a href="/" class="btn-sm">Chat</a>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Server Info -->
+  <div class="server-info" id="serverInfo">
+    <div class="info-card">
+      <div class="label">Status</div>
+      <div class="value ok" id="serverStatus">--</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Models</div>
+      <div class="value" id="modelCount">--</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Total Requests</div>
+      <div class="value" id="totalRequests">--</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Total Tokens</div>
+      <div class="value" id="totalTokens">--</div>
+    </div>
+  </div>
+
+  <!-- Rate Limit Cards -->
+  <div class="status-grid" id="statusGrid"></div>
+
+  <!-- History Chart -->
+  <div class="history-section">
+    <h3>Usage History (last 30 snapshots, 10s interval)</h3>
+    <div class="chart-container">
+      <canvas id="historyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Request Log -->
+  <div class="log-section">
+    <h3>Recent Activity</h3>
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Model</th>
+          <th>RPM Used</th>
+          <th>TPM Used</th>
+          <th>Groq Remaining</th>
+        </tr>
+      </thead>
+      <tbody id="logBody">
+        <tr><td colspan="5" class="log-empty">Collecting data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const TOKEN = localStorage.getItem('groq_token') || '';
+
+// History buffers for chart
+const MAX_HISTORY = 30;
+const history = {};
+const timeLabels = [];
+
+// Colors per model
+const MODEL_COLORS = {
+  'llama-3.3-70b-versatile': '#22c55e',
+  'openai/gpt-oss-120b': '#3b82f6',
+  'openai/gpt-oss-20b': '#a855f7',
+};
+
+// Simple canvas chart
+class MiniChart {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+  }
+
+  resize() {
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    this.canvas.width = rect.width * 2;
+    this.canvas.height = rect.height * 2;
+    this.w = rect.width * 2;
+    this.h = rect.height * 2;
+  }
+
+  draw(datasets, labels) {
+    const ctx = this.ctx;
+    const w = this.w;
+    const h = this.h;
+    const pad = { top: 20, right: 20, bottom: 40, left: 60 };
+    const plotW = w - pad.left - pad.right;
+    const plotH = h - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (labels.length < 2) {
+      ctx.fillStyle = '#888';
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Collecting data...', w / 2, h / 2);
+      return;
+    }
+
+    // Find max value
+    let maxVal = 10;
+    for (const ds of datasets) {
+      for (const v of ds.data) {
+        if (v > maxVal) maxVal = v;
+      }
+    }
+    maxVal = Math.ceil(maxVal * 1.2);
+
+    // Y-axis grid
+    ctx.strokeStyle = '#2a2a2a';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#888';
+    ctx.font = '20px monospace';
+    ctx.textAlign = 'right';
+
+    const ySteps = 4;
+    for (let i = 0; i <= ySteps; i++) {
+      const y = pad.top + plotH - (i / ySteps) * plotH;
+      const val = Math.round((i / ySteps) * maxVal);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(w - pad.right, y);
+      ctx.stroke();
+      ctx.fillText(val.toString(), pad.left - 10, y + 6);
+    }
+
+    // X-axis labels
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#666';
+    ctx.font = '18px monospace';
+    const step = Math.max(1, Math.floor(labels.length / 6));
+    for (let i = 0; i < labels.length; i += step) {
+      const x = pad.left + (i / (labels.length - 1)) * plotW;
+      ctx.fillText(labels[i], x, h - 10);
+    }
+
+    // Draw lines
+    for (const ds of datasets) {
+      ctx.strokeStyle = ds.color;
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+
+      for (let i = 0; i < ds.data.length; i++) {
+        const x = pad.left + (i / (labels.length - 1)) * plotW;
+        const y = pad.top + plotH - (ds.data[i] / maxVal) * plotH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Draw dots
+      ctx.fillStyle = ds.color;
+      for (let i = 0; i < ds.data.length; i++) {
+        const x = pad.left + (i / (labels.length - 1)) * plotW;
+        const y = pad.top + plotH - (ds.data[i] / maxVal) * plotH;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Legend
+    let legendX = pad.left;
+    ctx.font = '20px sans-serif';
+    for (const ds of datasets) {
+      ctx.fillStyle = ds.color;
+      ctx.fillRect(legendX, 4, 16, 10);
+      ctx.fillStyle = '#ccc';
+      ctx.textAlign = 'left';
+      ctx.fillText(ds.label, legendX + 22, 14);
+      legendX += ctx.measureText(ds.label).width + 50;
+    }
+  }
+}
+
+const chart = new MiniChart(document.getElementById('historyChart'));
+
+function getStatusBadge(used, limit) {
+  const pct = limit > 0 ? used / limit : 0;
+  if (pct >= 0.9) return 'danger';
+  if (pct >= 0.6) return 'warn';
+  return 'ok';
+}
+
+function getStatusLabel(used, limit) {
+  const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
+  if (pct >= 90) return 'Critical';
+  if (pct >= 60) return 'Warning';
+  return 'OK';
+}
+
+function shortModel(m) {
+  if (m.includes('120b')) return 'GPT-OSS 120B';
+  if (m.includes('20b')) return 'GPT-OSS 20B';
+  if (m.includes('llama')) return 'Llama 70B';
+  return m;
+}
+
+// Log entries
+const logEntries = [];
+const MAX_LOG = 20;
+
+function renderStatusCards(rateLimits) {
+  const grid = document.getElementById('statusGrid');
+  grid.innerHTML = '';
+
+  let totalReq = 0;
+  let totalTok = 0;
+
+  for (const [modelId, info] of Object.entries(rateLimits)) {
+    const rpm = info.requests_per_minute || {};
+    const rpd = info.requests_per_day || {};
+    const tpm = info.tokens_per_minute || {};
+    const tpd = info.tokens_per_day || {};
+
+    totalReq += rpd.used || 0;
+    totalTok += tpd.used || 0;
+
+    const rpmStatus = getStatusBadge(rpm.used || 0, rpm.limit || 1);
+    const overallStatus = getStatusBadge(rpm.used || 0, rpm.limit || 1);
+
+    // Record to history
+    if (!history[modelId]) history[modelId] = [];
+    history[modelId].push(rpm.used || 0);
+    if (history[modelId].length > MAX_HISTORY) history[modelId].shift();
+
+    // Log entry
+    logEntries.unshift({
+      time: new Date().toLocaleTimeString(),
+      model: modelId,
+      rpm_used: rpm.used || 0,
+      tpm_used: tpm.used || 0,
+      groq_remaining: info.groq_remaining_requests,
+    });
+
+    const card = document.createElement('div');
+    card.className = 'status-card';
+    card.innerHTML = `
+      <h3>
+        ${shortModel(modelId)}
+        <span class="badge ${overallStatus}">${getStatusLabel(rpm.used||0, rpm.limit||1)}</span>
+      </h3>
+
+      <div class="metric-row">
+        <span class="metric-label">RPM</span>
+        <span class="metric-value">${rpm.used || 0} / ${rpm.limit || 0}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill ${rpmStatus}" style="width: ${Math.min(100, ((rpm.used||0)/(rpm.limit||1))*100)}%"></div>
+      </div>
+
+      <div class="metric-row">
+        <span class="metric-label">RPD</span>
+        <span class="metric-value">${rpd.used || 0} / ${rpd.limit || 0}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill ${getStatusBadge(rpd.used||0, rpd.limit||1)}" style="width: ${Math.min(100, ((rpd.used||0)/(rpd.limit||1))*100)}%"></div>
+      </div>
+
+      <div class="metric-row">
+        <span class="metric-label">TPM</span>
+        <span class="metric-value">${(tpm.used||0).toLocaleString()} / ${(tpm.limit||0).toLocaleString()}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill ${getStatusBadge(tpm.used||0, tpm.limit||1)}" style="width: ${Math.min(100, ((tpm.used||0)/(tpm.limit||1))*100)}%"></div>
+      </div>
+
+      <div class="metric-row">
+        <span class="metric-label">TPD</span>
+        <span class="metric-value">${(tpd.used||0).toLocaleString()} / ${(tpd.limit||0).toLocaleString()}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill ${getStatusBadge(tpd.used||0, tpd.limit||1)}" style="width: ${Math.min(100, ((tpd.used||0)/(tpd.limit||1))*100)}%"></div>
+      </div>
+
+      ${info.groq_remaining_requests != null ?
+        `<div class="metric-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <span class="metric-label">Groq Remaining Req</span>
+          <span class="metric-value">${info.groq_remaining_requests}</span>
+        </div>` : ''}
+      ${info.groq_remaining_tokens != null ?
+        `<div class="metric-row">
+          <span class="metric-label">Groq Remaining Tok</span>
+          <span class="metric-value">${(info.groq_remaining_tokens||0).toLocaleString()}</span>
+        </div>` : ''}
+    `;
+    grid.appendChild(card);
+  }
+
+  document.getElementById('totalRequests').textContent = totalReq;
+  document.getElementById('totalTokens').textContent = totalTok.toLocaleString();
+}
+
+function renderChart() {
+  const now = new Date().toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  timeLabels.push(now);
+  if (timeLabels.length > MAX_HISTORY) timeLabels.shift();
+
+  const datasets = Object.entries(history).map(([modelId, data]) => ({
+    label: shortModel(modelId),
+    data: data,
+    color: MODEL_COLORS[modelId] || '#888',
+  }));
+
+  chart.draw(datasets, timeLabels);
+}
+
+function renderLog() {
+  const body = document.getElementById('logBody');
+  if (logEntries.length === 0) return;
+
+  // Keep only recent
+  while (logEntries.length > MAX_LOG) logEntries.pop();
+
+  body.innerHTML = logEntries.map(e => `
+    <tr>
+      <td class="mono">${e.time}</td>
+      <td>${shortModel(e.model)}</td>
+      <td class="mono">${e.rpm_used}</td>
+      <td class="mono">${e.tpm_used.toLocaleString()}</td>
+      <td class="mono">${e.groq_remaining != null ? e.groq_remaining : '-'}</td>
+    </tr>
+  `).join('');
+}
+
+async function fetchData() {
+  if (!TOKEN) {
+    document.getElementById('serverStatus').textContent = 'No Token';
+    document.getElementById('serverStatus').className = 'value';
+    return;
+  }
+
+  try {
+    // Fetch health and rate limits in parallel
+    const [healthResp, rateResp] = await Promise.all([
+      fetch(`${API_BASE}/health`),
+      fetch(`${API_BASE}/api/rate-limits`, {
+        headers: { 'Authorization': `Bearer ${TOKEN}` }
+      }),
+    ]);
+
+    const health = await healthResp.json();
+    document.getElementById('serverStatus').textContent = health.status === 'ok' ? 'OK' : health.status;
+    document.getElementById('serverStatus').className = `value ${health.status === 'ok' ? 'ok' : ''}`;
+    document.getElementById('modelCount').textContent = (health.available_models || []).length;
+
+    if (rateResp.ok) {
+      const rateData = await rateResp.json();
+      renderStatusCards(rateData.rate_limits || {});
+      renderChart();
+      renderLog();
+    }
+
+    document.getElementById('lastUpdate').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    document.getElementById('serverStatus').textContent = 'Error';
+    document.getElementById('serverStatus').className = 'value';
+    console.error(err);
+  }
+}
+
+// Auth check
+if (!TOKEN) {
+  if (confirm('No API token found. Go to chat to authenticate first?')) {
+    window.location.href = '/';
+  }
+}
+
+// Initial fetch + auto-refresh every 10s
+fetchData();
+setInterval(fetchData, 10000);
+</script>
+</body>
+</html>

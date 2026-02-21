@@ -48,9 +48,14 @@
     color: var(--accent);
   }
 
+  .header h1 a {
+    color: inherit;
+    text-decoration: none;
+  }
+
   .header-controls {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
   }
 
@@ -68,25 +73,27 @@
     border-color: var(--accent);
   }
 
-  .token-input {
-    width: 200px;
-    font-family: monospace;
-  }
-
-  .btn-clear {
+  .btn-sm {
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-dim);
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
+    white-space: nowrap;
   }
 
-  .btn-clear:hover {
+  .btn-sm:hover {
     border-color: var(--accent);
     color: var(--text);
+  }
+
+  .btn-sm.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(249, 115, 22, 0.1);
   }
 
   /* Auth overlay */
@@ -162,6 +169,100 @@
     display: none;
   }
 
+  /* System prompt panel */
+  .system-panel {
+    display: none;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .system-panel.open {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .system-panel label {
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .system-panel input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .system-panel input:focus {
+    border-color: var(--accent);
+  }
+
+  .system-panel .btn-apply {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  /* Export dropdown */
+  .dropdown {
+    position: relative;
+  }
+
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-width: 160px;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  .dropdown-menu.open {
+    display: block;
+  }
+
+  .dropdown-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text);
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .dropdown-menu button:hover {
+    background: var(--surface2);
+  }
+
+  .dropdown-menu button:first-child {
+    border-radius: 8px 8px 0 0;
+  }
+
+  .dropdown-menu button:last-child {
+    border-radius: 0 0 8px 8px;
+  }
+
   /* Messages area */
   .messages {
     flex: 1;
@@ -192,14 +293,6 @@
     align-self: flex-start;
     background: var(--assistant-bg);
     border: 1px solid var(--border);
-  }
-
-  .message.system-msg {
-    align-self: center;
-    background: transparent;
-    color: var(--text-dim);
-    font-size: 12px;
-    padding: 4px 8px;
   }
 
   .message .model-tag {
@@ -346,6 +439,28 @@
     color: var(--text-dim);
   }
 
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    opacity: 1;
+  }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -353,12 +468,13 @@
 
   @media (max-width: 640px) {
     .message { max-width: 95%; }
-    .header { padding: 10px 14px; }
+    .header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
     .header h1 { font-size: 16px; }
-    .header-controls { gap: 6px; }
-    .token-input { width: 120px; font-size: 11px; }
-    select { font-size: 11px; }
+    .header-controls { gap: 4px; }
+    select { font-size: 11px; padding: 5px 6px; }
+    .btn-sm { font-size: 11px; padding: 5px 7px; }
     .messages { padding: 12px; }
+    .system-panel.open { flex-wrap: wrap; }
   }
 </style>
 </head>
@@ -377,15 +493,34 @@
 
 <!-- Header -->
 <div class="header">
-  <h1>Groq Chat</h1>
+  <h1><a href="/">Groq Chat</a></h1>
   <div class="header-controls">
     <select id="modelSelect">
-      <option value="llama-3.3-70b-versatile">Llama 70B (default)</option>
+      <option value="llama-3.3-70b-versatile">Llama 70B</option>
       <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
       <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
     </select>
-    <button class="btn-clear" onclick="clearChat()">Clear</button>
+    <button class="btn-sm" id="systemBtn" onclick="toggleSystemPanel()" title="System Prompt">System</button>
+    <div class="dropdown">
+      <button class="btn-sm" onclick="toggleDropdown()" title="More options">Export</button>
+      <div class="dropdown-menu" id="exportMenu">
+        <button onclick="exportJSON()">Export JSON</button>
+        <button onclick="exportMarkdown()">Export Markdown</button>
+        <button onclick="exportText()">Export Text</button>
+      </div>
+    </div>
+    <a href="/dashboard" class="btn-sm" style="text-decoration:none">Dashboard</a>
+    <button class="btn-sm" onclick="clearChat()">Clear</button>
   </div>
+</div>
+
+<!-- System prompt panel -->
+<div class="system-panel" id="systemPanel">
+  <label>System:</label>
+  <input type="text" id="systemPromptInput" placeholder="You are a helpful assistant..."
+         value="" onkeydown="if(event.key==='Enter')applySystemPrompt()">
+  <button class="btn-apply" onclick="applySystemPrompt()">Apply</button>
+  <button class="btn-sm" onclick="clearSystemPrompt()" style="font-size:12px">Clear</button>
 </div>
 
 <!-- Messages -->
@@ -411,11 +546,29 @@
   <div class="input-hint">Enter to send, Shift+Enter for new line</div>
 </div>
 
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
 <script>
 const API_BASE = window.location.origin;
 let TOKEN = localStorage.getItem('groq_token') || '';
 let conversationHistory = [];
+let systemPrompt = localStorage.getItem('groq_system_prompt') || '';
 let isStreaming = false;
+
+// Init system prompt
+if (systemPrompt) {
+  document.getElementById('systemPromptInput').value = systemPrompt;
+  document.getElementById('systemBtn').classList.add('active');
+}
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
 
 // Auth
 function checkAuth() {
@@ -453,6 +606,99 @@ document.getElementById('authToken').addEventListener('keydown', e => {
   if (e.key === 'Enter') authenticate();
 });
 
+// System prompt
+function toggleSystemPanel() {
+  const panel = document.getElementById('systemPanel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    document.getElementById('systemPromptInput').focus();
+  }
+}
+
+function applySystemPrompt() {
+  systemPrompt = document.getElementById('systemPromptInput').value.trim();
+  localStorage.setItem('groq_system_prompt', systemPrompt);
+  document.getElementById('systemBtn').classList.toggle('active', !!systemPrompt);
+  showToast(systemPrompt ? 'System prompt applied' : 'System prompt cleared');
+}
+
+function clearSystemPrompt() {
+  systemPrompt = '';
+  document.getElementById('systemPromptInput').value = '';
+  localStorage.setItem('groq_system_prompt', '');
+  document.getElementById('systemBtn').classList.remove('active');
+  showToast('System prompt cleared');
+}
+
+// Export
+function toggleDropdown() {
+  document.getElementById('exportMenu').classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dropdown')) {
+    document.getElementById('exportMenu').classList.remove('open');
+  }
+});
+
+function getExportData() {
+  const model = document.getElementById('modelSelect').value;
+  return {
+    exported_at: new Date().toISOString(),
+    model: model,
+    system_prompt: systemPrompt || null,
+    messages: conversationHistory,
+  };
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`Exported as ${filename}`);
+}
+
+function exportJSON() {
+  const data = getExportData();
+  const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
+  downloadFile(`groq-chat-${ts}.json`, JSON.stringify(data, null, 2), 'application/json');
+  document.getElementById('exportMenu').classList.remove('open');
+}
+
+function exportMarkdown() {
+  const data = getExportData();
+  let md = `# Groq Chat Export\n\n`;
+  md += `- **Date**: ${data.exported_at}\n`;
+  md += `- **Model**: ${data.model}\n`;
+  if (data.system_prompt) md += `- **System Prompt**: ${data.system_prompt}\n`;
+  md += `\n---\n\n`;
+  for (const msg of data.messages) {
+    const label = msg.role === 'user' ? '**You**' : '**Assistant**';
+    md += `${label}:\n\n${msg.content}\n\n---\n\n`;
+  }
+  const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
+  downloadFile(`groq-chat-${ts}.md`, md, 'text/markdown');
+  document.getElementById('exportMenu').classList.remove('open');
+}
+
+function exportText() {
+  const data = getExportData();
+  let txt = `Groq Chat Export - ${data.exported_at}\n`;
+  txt += `Model: ${data.model}\n`;
+  if (data.system_prompt) txt += `System Prompt: ${data.system_prompt}\n`;
+  txt += `${'='.repeat(60)}\n\n`;
+  for (const msg of data.messages) {
+    const label = msg.role === 'user' ? 'You' : 'Assistant';
+    txt += `[${label}]\n${msg.content}\n\n`;
+  }
+  const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
+  downloadFile(`groq-chat-${ts}.txt`, txt, 'text/plain');
+  document.getElementById('exportMenu').classList.remove('open');
+}
+
 // Chat
 function addMessage(role, content, model) {
   const welcome = document.getElementById('welcome');
@@ -478,7 +724,6 @@ function addMessage(role, content, model) {
 }
 
 function renderMarkdown(text) {
-  // Simple markdown: code blocks, inline code, bold, italic
   let html = text
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -506,6 +751,13 @@ async function sendMessage() {
   const textNode = addMessage('assistant', '', model);
   textNode.innerHTML = '<span class="typing-indicator">Thinking</span>';
 
+  // Build messages with system prompt
+  let messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages = messages.concat(conversationHistory);
+
   try {
     const resp = await fetch(`${API_BASE}/v1/chat/completions`, {
       method: 'POST',
@@ -515,7 +767,7 @@ async function sendMessage() {
       },
       body: JSON.stringify({
         model: model,
-        messages: conversationHistory,
+        messages: messages,
         stream: true,
       }),
     });

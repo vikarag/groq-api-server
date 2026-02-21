@@ -89,6 +89,12 @@ async def serve_chat_ui():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+# Serve dashboard
+@app.get("/dashboard", include_in_schema=False)
+async def serve_dashboard():
+    return FileResponse(STATIC_DIR / "dashboard.html")
+
+
 # Serve other static files (if any added later)
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
